@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GHOST: Generalizing Skills By Hierarchical Learning from Human Demonstrations</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="toc">
+    <h3>Content</h3>
+    <hr>
+    <ul>
+      <li><a href="#abstract">Abstract</a></li>
+      <li><a href="#approach">Approach</a></li>
+      <li class="toc-subsection"><a href="#data-collection">Data Collection</a></li>
+      <li class="toc-subsection"><a href="#high-level-policy">High-Level Policy</a></li>
+      <li class="toc-subsection"><a href="#low-level-policy">Low-Level Policy</a></li>
+      <li><a href="#experiments">Experiments</a></li>
+      <li><a href="#bibtex">BibTeX</a></li>
+    </ul>
+  </div>
+
+  <div class="main-content">
+    <div class="hero-text">👻 GHOST</div>
+    <div class="sub-hero-text">Generalizing Skills By Hierarchical Learning from Human Demonstrations</div>
+
+    <!-- Authors -->
+    <div class="authors">
+      <a href="https://sriramsk1999.github.io/" target="_blank">Sriram Krishna</a><sup>1</sup>,
+      <a href="https://beisner.me/" target="_blank">Ben Eisner</a><sup>1</sup>,
+      <a href="https://www.linkedin.com/in/david-zhan-96935126a/" target="_blank">Haotian Zhan</a><sup>1</sup>,
+      <a href="https://yingyuan0414.github.io/" target="_blank">Ying Yuan</a><sup>1</sup>,
+      <a href="https://haoyuzhen.com/" target="_blank">Haoyu Zhen</a><sup>2</sup>,
+      <a href="https://people.csail.mit.edu/ganchuang/" target="_blank">Chuang Gan</a><sup>2</sup>, <br>
+      <a href="https://shubhtuls.github.io/" target="_blank">Shubham Tulsiani</a><sup>1</sup>,
+      <a href="https://davheld.github.io/" target="_blank">David Held</a><sup>1</sup>
+      <span class="affiliation"><sup>1</sup>Robotics Institute, Carnegie Mellon University &nbsp;&nbsp;&nbsp; <sup>2</sup>UMass Amherst</span>
+    </div>
+    <!-- End Authors -->
+
+    <!-- Teaser Figure Placeholder -->
+    <div style="width: 100%; height: 400px; background-color: #e0e0e0; border-radius: 15px; display: flex; align-items: center; justify-content: center; margin: 20px 0; border: 1.5px solid #000;">
+      <p style="font-family: 'Roboto Mono', monospace; color: #666; font-size: 18px;">Teaser Figure Placeholder</p>
+    </div>
+    <!-- Caption for Teaser -->
+    <p class="figure-caption">
+      <b>GHOST</b> enables robots to learn precise manipulation skills from robot data and generalize to novel objects and tasks through human demonstrations. The hierarchical policy framework decouples high-level task planning (trained on human+robot data) from low-level execution (trained only on robot data).
+    </p>
+
+    <!-- Quick Links -->
+    <div class="quick-links">
+      <a href="#" target="_blank">[pdf]</a>
+      <a href="https://github.com/r-pad/lfd3d" target="_blank">[code]</a>
+    </div>
+
+    <div class="tagline" id="abstract">Abstract.</div>
+
+    <div class="section">
+      We present GHOST, a framework for generalizing robot skills to new tasks through human demonstrations. Robot teleoperation data is critical for training robust policies but is expensive to scale, while human video is abundant but lacks action labels.
+      <br><br>
+      We use a hierarchical policy framework that decouples a policy into two parts - The high-level policy maps visual observations to task "sub-goals". These sub-goals are intermediate objectives like "grasp the handle" defined in a task-relevant but embodiment-agnostic manner, and does not require action labels. The low-level policy is conditioned on these goals to execute embodiment-specific actions, and is trained purely on robot data. This setup provides two key benefits. First, even when trained purely on teleoperation data, it significantly boosts performance. Second, it enables out-of-distribution generalization through human demonstrations - allowing us to learn precise embodiment-specific skills from robot data and then <i>generalize</i> these learned skills across novel objects and compositions of these skills.
+      <br><br>
+      We demonstrate the results from our framework across multiple challenging real-world tasks including pick-and-place, cloth folding, and manipulation of articulated objects.
+    </div>
+
+    <div class="tagline" id="approach">Approach.</div>
+
+    <!-- System Overview Figure Placeholder -->
+    <div style="width: 100%; height: 350px; background-color: #e0e0e0; border-radius: 15px; display: flex; align-items: center; justify-content: center; margin: 20px 0; border: 1.5px solid #000;">
+      <p style="font-family: 'Roboto Mono', monospace; color: #666; font-size: 18px;">System Overview Figure Placeholder</p>
+    </div>
+    <p class="figure-caption">
+      <b>GHOST Framework Overview:</b> The hierarchical policy consists of a high-level goal prediction network that predicts end-effector sub-goals and a low-level goal-conditioned policy that executes actions to reach those goals.
+    </p>
+
+    <div class="section">
+      GHOST decomposes the policy learning problem into two components: a high-level policy that predicts spatial sub-goals in a task-specific but embodiment-agnostic manner, and a low-level policy that learns embodiment-specific skills to achieve those goals. This factorization enables the high-level policy to be trained on both human and robot data, while the low-level policy is trained exclusively on robot demonstrations to learn precise manipulation behaviors.
+    </div>
+
+    <div class="section-subtitle" id="data-collection">1. Data Collection and Processing.</div>
+
+    <div class="section">
+      We collect two types of demonstrations: robot teleoperation data and human demonstrations. For robot data, we collect demonstrations across multiple task variants, each demonstrating the same skill (e.g., pick-and-place), to provide in-distribution coverage. Sub-goals are extracted automatically by identifying timesteps where the gripper state changes. For human data, we collect demonstrations of the same skill in novel settings using new objects or novel applications. We track 3D hand poses using off-the-shelf hand pose estimators and manually annotate sub-goal timesteps.
+      <br><br>
+      To enable cross-embodiment transfer, we represent end-effector poses as a set of 4 3D keypoints that can be extracted from both robot grippers and human hands: the gripper base/palm, finger tips, and grasping center. This unified representation allows the high-level policy to be trained on both robot and human demonstrations.
+    </div>
+
+    <div class="section-subtitle" id="high-level-policy">2. High-Level Goal Prediction Policy.</div>
+
+    <!-- High-Level Policy Figure Placeholder -->
+    <div style="width: 100%; height: 300px; background-color: #e0e0e0; border-radius: 15px; display: flex; align-items: center; justify-content: center; margin: 20px 0; border: 1.5px solid #000;">
+      <p style="font-family: 'Roboto Mono', monospace; color: #666; font-size: 18px;">High-Level Goal Prediction Architecture Placeholder</p>
+    </div>
+    <p class="figure-caption">
+      <b>High-Level Policy Architecture:</b> An encoder-only transformer processes RGB-D observations from multiple cameras with frozen DINOv2 features. Each patch token predicts mixing weights and 3D residual vectors for a Gaussian Mixture Model representing the distribution over sub-goal end-effector poses.
+    </p>
+
+    <div class="section">
+      The high-level policy predicts the end-effector pose at the next sub-goal timestep. We parameterize it as an encoder-only transformer operating on RGB-D observations from multiple cameras. Each RGB-D image is processed with a frozen DINOv2 encoder, producing patch tokens that are augmented with 3D coordinates derived from depth. To handle multimodality in demonstrations, we model the goal distribution as a per-patch Gaussian Mixture Model where each patch predicts mixing weights and 3D residual vectors relative to the patch center.
+    </div>
+
+    <div class="section-subtitle" id="low-level-policy">3. Low-Level Goal-Conditioned Policy.</div>
+
+    <!-- Low-Level Policy Figure Placeholder -->
+    <div style="width: 100%; height: 300px; background-color: #e0e0e0; border-radius: 15px; display: flex; align-items: center; justify-content: center; margin: 20px 0; border: 1.5px solid #000;">
+      <p style="font-family: 'Roboto Mono', monospace; color: #666; font-size: 18px;">Low-Level Goal-Conditioned Policy Architecture Placeholder</p>
+    </div>
+    <p class="figure-caption">
+      <b>Low-Level Policy Architecture:</b> A Diffusion Policy that generates action chunks conditioned on observations and end-effector heatmaps. The 3D goals are projected to image planes and represented as dense heatmaps encoding pixel distance fields.
+    </p>
+
+    <div class="section">
+      We instantiate the low-level policy as a Diffusion Policy that generates chunks of actions by denoising conditioned on observations and spatial goals. The 3D goals predicted by the high-level policy are projected to each camera's image plane and converted to dense <i>end-effector heatmaps</i>. These heatmaps encode the pixel distance field from each keypoint, providing a spatial representation that preserves structure while densifying the sparse goal information. This approach allows the policy to effectively condition on goals while leveraging standard image-based architectures.
+    </div>
+
+    <!-- End-Effector Representation Figure Placeholder -->
+    <div style="width: 100%; height: 250px; background-color: #e0e0e0; border-radius: 15px; display: flex; align-items: center; justify-content: center; margin: 20px 0; border: 1.5px solid #000;">
+      <p style="font-family: 'Roboto Mono', monospace; color: #666; font-size: 18px;">End-Effector Representation Placeholder</p>
+    </div>
+    <p class="figure-caption">
+      <b>Cross-Embodiment End-Effector Representation:</b> We represent end-effector poses as a set of 4 3D keypoints (gripper base, finger tips, grasping center) that can be extracted from both robot grippers and human hands, enabling a unified goal representation across embodiments.
+    </p>
+
+    <div class="tagline" id="experiments">Experiments and Results.</div>
+
+    <div class="section">
+      We evaluate GHOST across multiple challenging real-world manipulation tasks to demonstrate both in-distribution performance improvements and out-of-distribution generalization through human demonstrations. Our experiments span pick-and-place, cloth folding, and articulated object manipulation tasks.
+    </div>
+
+    <!-- Task Demonstrations Placeholder -->
+    <div class="video-gallery-section" id="pick-place-gallery">
+      <div class="video-gallery-container">
+        <div class="video-gallery" id="videoGalleryPickPlace">
+          <!-- Placeholder videos -->
+          <div style="width: 350px; height: 220px; background-color: #d0d0d0; border-radius: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <p style="font-family: 'Roboto Mono', monospace; color: #666; font-size: 14px;">Video 1</p>
+          </div>
+          <div style="width: 350px; height: 220px; background-color: #d0d0d0; border-radius: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <p style="font-family: 'Roboto Mono', monospace; color: #666; font-size: 14px;">Video 2</p>
+          </div>
+          <div style="width: 350px; height: 220px; background-color: #d0d0d0; border-radius: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <p style="font-family: 'Roboto Mono', monospace; color: #666; font-size: 14px;">Video 3</p>
+          </div>
+          <div style="width: 350px; height: 220px; background-color: #d0d0d0; border-radius: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <p style="font-family: 'Roboto Mono', monospace; color: #666; font-size: 14px;">Video 4</p>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-caption-container">
+        <div class="gallery-nav-controls">
+          <button class="gallery-nav left" id="scrollLeftBtnPickPlace">&lt;</button>
+          <button class="gallery-nav right" id="scrollRightBtnPickPlace">&gt;</button>
+        </div>
+        <p class="figure-caption gallery-caption">
+          <b>Pick and Place:</b> GHOST successfully generalizes pick-and-place skills to novel objects (mugs, octopus) after training on in-distribution objects (plates).
+        </p>
+      </div>
+    </div>
+
+    <!-- Cloth Folding Placeholder -->
+    <div class="video-gallery-section" id="cloth-folding-gallery">
+      <div class="video-gallery-container">
+        <div class="video-gallery" id="videoGalleryClothFolding">
+          <div style="width: 350px; height: 220px; background-color: #d0d0d0; border-radius: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <p style="font-family: 'Roboto Mono', monospace; color: #666; font-size: 14px;">Video 1</p>
+          </div>
+          <div style="width: 350px; height: 220px; background-color: #d0d0d0; border-radius: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <p style="font-family: 'Roboto Mono', monospace; color: #666; font-size: 14px;">Video 2</p>
+          </div>
+          <div style="width: 350px; height: 220px; background-color: #d0d0d0; border-radius: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <p style="font-family: 'Roboto Mono', monospace; color: #666; font-size: 14px;">Video 3</p>
+          </div>
+          <div style="width: 350px; height: 220px; background-color: #d0d0d0; border-radius: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <p style="font-family: 'Roboto Mono', monospace; color: #666; font-size: 14px;">Video 4</p>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-caption-container">
+        <div class="gallery-nav-controls">
+          <button class="gallery-nav left" id="scrollLeftBtnClothFolding">&lt;</button>
+          <button class="gallery-nav right" id="scrollRightBtnClothFolding">&gt;</button>
+        </div>
+        <p class="figure-caption gallery-caption">
+          <b>Cloth Folding:</b> The hierarchical policy enables generalization to different garments (onesies, towels) and novel folding patterns through human demonstrations.
+        </p>
+      </div>
+    </div>
+
+    <!-- Results Tables -->
+    <div class="section">
+      <h3 style="font-family: 'Roboto Mono', monospace; font-size: 18px; margin-top: 30px;">Pick and Place Results</h3>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-family: 'Roboto Mono', monospace; font-size: 14px;">
+        <thead>
+          <tr style="background-color: #333; color: white;">
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Method</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">In-Distribution<br>(plate-on-table) %</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">OOD Compositional<br>(mug-on-table) %</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">OOD Novel<br>(octopus-on-table) %</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background-color: #f9f9f9;">
+            <td style="padding: 10px; border: 1px solid #ddd;">Diffusion Policy</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">60</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">5</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">Hierarchical DP w/out Human</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">70</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+          </tr>
+          <tr style="background-color: #f9f9f9; font-weight: bold;">
+            <td style="padding: 10px; border: 1px solid #ddd;">GHOST (Ours)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">60</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">32.5</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">20</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="font-family: 'Roboto Mono', monospace; font-size: 18px; margin-top: 40px;">Cloth Folding Results</h3>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-family: 'Roboto Mono', monospace; font-size: 14px;">
+        <thead>
+          <tr style="background-color: #333; color: white;">
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Method</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;" colspan="2">In-Distribution<br>Onesie</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;" colspan="2">OOD<br>Onesie</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;" colspan="2">OOD Onesie<br>OOD Fold</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;" colspan="2">OOD<br>Towel</th>
+          </tr>
+          <tr style="background-color: #444; color: white;">
+            <th style="padding: 8px; border: 1px solid #ddd;"></th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd; font-size: 12px;">Progress</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd; font-size: 12px;">Success</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd; font-size: 12px;">Progress</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd; font-size: 12px;">Success</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd; font-size: 12px;">Progress</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd; font-size: 12px;">Success</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd; font-size: 12px;">Progress</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd; font-size: 12px;">Success</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background-color: #f9f9f9;">
+            <td style="padding: 10px; border: 1px solid #ddd;">Diffusion Policy</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">40</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">Hierarchical DP w/out Human</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">-</td>
+          </tr>
+          <tr style="background-color: #f9f9f9; font-weight: bold;">
+            <td style="padding: 10px; border: 1px solid #ddd;">GHOST (Ours)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">90</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">70</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">82</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">50</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">58</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">35</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">5</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- BibTeX -->
+    <div class="bibtex-code" id="bibtex">
+      <div class="bibtex-title">BibTeX</div>
+      <div style="height: 150px; background-color: rgba(60, 60, 60, 0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-top: 10px;">
+        <p style="font-family: 'Roboto Mono', monospace; color: #999; font-size: 16px;">Coming soon</p>
+      </div>
+    </div>
+
+  </div> <!-- End of main-content div -->
+
+  <div class="footer">
+    Website template modified from <a href="https://videomimic.net/" target="_blank">VideoMimic</a>.
+  </div>
+
+  <!-- JavaScript for Video Gallery Navigation -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const galleries = [
+        {
+          galleryInnerId: 'videoGalleryPickPlace',
+          scrollLeftBtnId: 'scrollLeftBtnPickPlace',
+          scrollRightBtnId: 'scrollRightBtnPickPlace'
+        },
+        {
+          galleryInnerId: 'videoGalleryClothFolding',
+          scrollLeftBtnId: 'scrollLeftBtnClothFolding',
+          scrollRightBtnId: 'scrollRightBtnClothFolding'
+        }
+      ];
+
+      galleries.forEach(galleryConfig => {
+        const galleryContainer = document.getElementById(galleryConfig.galleryInnerId);
+        const scrollLeftBtn = document.getElementById(galleryConfig.scrollLeftBtnId);
+        const scrollRightBtn = document.getElementById(galleryConfig.scrollRightBtnId);
+
+        if (galleryContainer && scrollLeftBtn && scrollRightBtn) {
+          const scrollAmount = 365; // Width of placeholder + gap
+
+          scrollLeftBtn.addEventListener('click', () => {
+            galleryContainer.parentElement.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+          });
+
+          scrollRightBtn.addEventListener('click', () => {
+            galleryContainer.parentElement.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+          });
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>
