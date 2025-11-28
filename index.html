@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GHOST: Generalizing Skills By Hierarchical Learning from Human Demonstrations</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="toc">
+    <h3>Content</h3>
+    <hr>
+    <ul>
+      <li><a href="#abstract">Abstract</a></li>
+      <li><a href="#approach">Approach</a></li>
+      <li class="toc-subsection"><a href="#data-collection">Data Collection</a></li>
+      <li class="toc-subsection"><a href="#high-level-policy">High-Level Policy</a></li>
+      <li class="toc-subsection"><a href="#low-level-policy">Low-Level Policy</a></li>
+      <li><a href="#experiments">Experiments</a></li>
+      <li><a href="#bibtex">BibTeX</a></li>
+    </ul>
+  </div>
+
+  <div class="main-content">
+    <div class="hero-text">👻 GHOST</div>
+    <div class="sub-hero-text">Generalizing Skills By Hierarchical Learning from Human Demonstrations</div>
+
+    <!-- Authors -->
+    <div class="authors">
+      <a href="https://sriramsk1999.github.io/" target="_blank">Sriram Krishna</a><sup>1</sup>,
+      <a href="https://beisner.me/" target="_blank">Ben Eisner</a><sup>1</sup>,
+      <a href="https://www.linkedin.com/in/david-zhan-96935126a/" target="_blank">Haotian Zhan</a><sup>1</sup>,
+      <a href="https://yingyuan0414.github.io/" target="_blank">Ying Yuan</a><sup>1</sup>,
+      <a href="https://haoyuzhen.com/" target="_blank">Haoyu Zhen</a><sup>2</sup>,
+      <a href="https://people.csail.mit.edu/ganchuang/" target="_blank">Chuang Gan</a><sup>2</sup>, <br>
+      <a href="https://shubhtuls.github.io/" target="_blank">Shubham Tulsiani</a><sup>1</sup>,
+      <a href="https://davheld.github.io/" target="_blank">David Held</a><sup>1</sup>
+      <span class="affiliation"><sup>1</sup>Robotics Institute, Carnegie Mellon University &nbsp;&nbsp;&nbsp; <sup>2</sup>UMass Amherst</span>
+    </div>
+    <!-- End Authors -->
+
+    <!-- Teaser Figure -->
+    <div style="width: 100%; margin: 20px 0;">
+      <img src="figs/ghost-teaser.png" alt="GHOST Teaser Figure" style="width: 100%; border-radius: 15px; border: 1.5px solid #000;">
+    </div>
+    <!-- Caption for Teaser -->
+    <p class="figure-caption">
+      <b>GHOST</b> learns robot skills from in-distribution teleoperation data and generalizes to novel tasks using human demonstrations. We train a hierarchical policy that decouples task-specific goal prediction (π<sub>hi</sub>) from embodiment-specific action execution (π<sub>lo</sub>). By training π<sub>hi</sub> on both robot and human data while keeping π<sub>lo</sub> purely on robot data, GHOST transfers learned manipulation skills to out-of-distribution tasks with only human video demonstrations.
+    </p>
+
+    <!-- Quick Links -->
+    <div class="quick-links">
+      <a href="ghost.pdf" target="_blank">[pdf]</a>
+      <a href="https://github.com/r-pad/lfd3d" target="_blank">[code]</a>
+    </div>
+
+    <div class="tagline" id="abstract">Abstract.</div>
+
+    <div class="section">
+      We present GHOST, a framework for generalizing robot skills to new tasks through human demonstrations. Robot teleoperation data is critical for training robust policies, but is expensive to scale, while human video is abundant, but lacks executable robot actions. We use a hierarchical policy framework that decouples a policy into two parts. The high-level policy maps visual observations to task "sub-goals". These sub-goals are intermediate objectives like "grasp the handle" defined in a task-relevant but embodiment-agnostic manner, and do not require action labels. The low-level policy is conditioned on these goals to execute embodiment-specific actions and is trained purely on robot data. This setup provides two key benefits. First, even when trained purely on teleoperation data, it significantly boosts performance. Second, it enables out-of-distribution generalization through human demonstrations - allowing us to learn precise embodiment-specific skills from robot data and then <i>generalize</i> these learned skills across novel objects and compositions of these skills.
+    </div>
+
+    <div class="tagline" id="approach">Approach.</div>
+
+    <div class="section">
+      GHOST decomposes the policy learning problem into two components: a high-level policy that predicts spatial sub-goals in a task-specific but embodiment-agnostic manner, and a low-level policy that learns embodiment-specific skills to achieve those goals. This factorization enables the high-level policy to be trained on both human and robot data, while the low-level policy is trained exclusively on robot demonstrations to learn precise manipulation behaviors.
+    </div>
+
+    <div class="section-subtitle" id="data-collection">1. Data Collection and Processing.</div>
+
+    <div class="section">
+      We collect two types of demonstrations: robot teleoperation data and human demonstrations. For robot data, we collect demonstrations across multiple task variants, each demonstrating the same skill (e.g., pick-and-place), to provide in-distribution coverage. Sub-goals are extracted automatically by identifying timesteps where the gripper state changes. For human data, we collect demonstrations of the same skill in novel settings using new objects or novel applications. We track 3D hand poses using off-the-shelf hand pose estimators and manually annotate sub-goal timesteps.
+
+    <!-- Demonstration Videos: Robot vs Human -->
+    <div style="width: 100%; margin: 30px 0;">
+      <div style="display: flex; gap: 20px; justify-content: center; align-items: flex-start; margin-bottom: 10px;">
+        <div style="width: 48%; text-align: center;">
+          <video style="width: 100%; border-radius: 15px; border: 1.5px solid #000;" autoplay loop muted playsinline>
+            <source src="vids/onesie_teleop.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div style="width: 48%; text-align: center;">
+          <video style="width: 100%; border-radius: 15px; border: 1.5px solid #000;" autoplay loop muted playsinline>
+            <source src="vids/towel_human_demo.mp4" type="video/mp4">
+          </video>
+        </div>
+      </div>
+    </div>
+
+    <!-- Human Demo Supercut -->
+    <div style="width: 100%; margin: 20px 0; text-align: center;">
+      <video style="width: 100%; border-radius: 15px; border: 1.5px solid #000;" autoplay loop muted playsinline>
+        <source src="vids/human_demo_supercut.mp4" type="video/mp4">
+      </video>
+      <p class="figure-caption">
+        <b>Human demonstration collection.</b> We collect human video demonstrations for out-of-distribution generalization, annotating sub-goal timesteps where key manipulation events occur (e.g., grasping, placing, folding transitions).
+      </p>
+    </div>
+  
+      To enable cross-embodiment transfer, we represent end-effector poses as a set of 4 3D keypoints that can be extracted from both robot grippers and human hands: the gripper base/palm, finger tips, and grasping center. This unified representation allows the high-level policy to be trained on both robot and human demonstrations.
+    </div>
+
+    <!-- 3D Viewers for End-Effector Representations -->
+    <div style="width: 100%; margin: 30px 0; display: flex; gap: 20px; justify-content: center; align-items: flex-start;">
+      <div style="width: 48%; text-align: center;">
+        <canvas id="aloha-viewer" style="width: 100%; height: 350px; border-radius: 15px; border: 1.5px solid #000; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);"></canvas>
+        <p style="font-family: 'Roboto Mono', monospace; font-size: 14px; margin-top: 10px; color: #333;">ALOHA Gripper</p>
+      </div>
+      <div style="width: 48%; text-align: center;">
+        <canvas id="hand-viewer" style="width: 100%; height: 350px; border-radius: 15px; border: 1.5px solid #000; background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);"></canvas>
+        <p style="font-family: 'Roboto Mono', monospace; font-size: 14px; margin-top: 10px; color: #333;">MANO Hand</p>
+      </div>
+    </div>
+    <p class="figure-caption">
+    <b>End-effector representations for robot and human demonstrations.</b> Instead of explicitly retargeting the gripper pose to a translation and SO(3) rotation, we represent gripper poses as sets of 3D keypoints (red spheres): gripper base, fingertip locations, and grasping center. <i>Left</i>: Parallel-jaw gripper. <i>Right</i>: MANO hand. (Interactive - drag to rotate, scroll to zoom)
+    </p>
+
+    <div class="section-subtitle" id="high-level-policy">2. High-Level Goal Prediction Policy.</div>
+
+    <!-- High-Level Policy Figure -->
+    <div style="width: 100%; margin: 20px 0;">
+      <img src="figs/dino_3dgp_v2.png" alt="High-Level Goal Prediction Architecture" style="width: 100%; border-radius: 15px; border: 1.5px solid #000;">
+    </div>
+    <p class="figure-caption">
+      <b>GHOST High-level goal prediction architecture:</b> RGB-D observations from multiple cameras are processed with a DINOv2 encoder, with patch tokens augmented by 3D coordinates. Additional context (gripper state, language embedding, embodiment name) is encoded via separate MLPs. An encoder-only transformer processes all tokens, with each patch predicting GMM parameters of a 3D goal distribution over end-effector keypoints.
+    </p>
+
+    <div class="section">
+      The high-level policy predicts the end-effector pose at the next sub-goal timestep. We parameterize it as an encoder-only transformer operating on RGB-D observations from multiple cameras. Each RGB-D image is processed with a frozen DINOv2 encoder, producing patch tokens that are augmented with 3D coordinates derived from depth. To handle multimodality in demonstrations, we model the goal distribution as a per-patch Gaussian Mixture Model where each patch predicts mixing weights and 3D residual vectors relative to the patch center.
+    </div>
+
+    <!-- GMM Inference Figure -->
+    <div style="width: 100%; margin: 20px 0;">
+      <video style="width: 100%; border-radius: 15px; border: 1.5px solid #000;" autoplay loop muted playsinline>
+        <source src="vids/gmm_quiver_vis.mp4" type="video/mp4">
+      </video>
+    </div>
+    <p class="figure-caption">
+      <b>High-level policy GMM predictions at inference.</b> We visualize the top-3 mixture components per camera view, with the opacity encoding mixing weight w<sub>i</sub> and arrows showing projections of 3D residuals Δp from patch centers.
+    </p>
+
+    <div class="section-subtitle" id="low-level-policy">3. Low-Level Goal-Conditioned Policy.</div>
+
+    <!-- Low-Level Policy Figure -->
+    <div style="width: 100%; margin: 20px 0;">
+      <img src="figs/eef_heatmap_v2.png" alt="End-Effector Heatmap Generation" style="width: 100%; border-radius: 15px; border: 1.5px solid #000;">
+    </div>
+    <p class="figure-caption">
+      <b>End-effector heatmap generation for goal conditioning.</b> Predicted 3D keypoints are projected to 2D coordinates, and then converted to dense distance field heatmaps that encode spatial proximity to each keypoint.
+    </p>
+
+    <div class="section">
+      We instantiate the low-level policy as a Diffusion Policy that generates chunks of actions by denoising conditioned on observations and spatial goals. The 3D goals predicted by the high-level policy are projected to each camera's image plane and converted to dense <i>end-effector heatmaps</i>. These heatmaps encode the pixel distance field from each keypoint, providing a spatial representation that preserves structure while densifying the sparse goal information. This approach allows the policy to effectively condition on goals while leveraging standard image-based architectures.
+    </div>
+
+    <div class="tagline" id="experiments">Experiments and Results.</div>
+
+    <div class="section">
+      We evaluate GHOST across multiple challenging real-world manipulation tasks to demonstrate both in-distribution performance improvements and out-of-distribution generalization through human demonstrations.
+    </div>
+
+    <h3 style="font-family: 'Roboto Mono', monospace; font-size: 18px; margin-top: 30px;">Task Overview</h3>
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-family: 'Roboto Mono', monospace; font-size: 14px;">
+      <thead>
+        <tr style="background-color: #333; color: white;">
+          <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Task</th>
+          <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Data Source</th>
+          <th style="padding: 12px; text-align: center; border: 1px solid #ddd;"># Demos</th>
+          <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Generalization Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Pick-and-Place -->
+        <tr style="background-color: #f0f0f0;">
+          <td colspan="4" style="padding: 8px; border: 1px solid #ddd; font-weight: bold; font-style: italic; text-align: center;">Pick-and-Place</td>
+        </tr>
+        <tr style="background-color: rgba(90, 155, 213, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">plate-on-table</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Robot</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">20</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">—</td>
+        </tr>
+        <tr style="background-color: rgba(90, 155, 213, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">plate-in-bin</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Robot</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">20</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">—</td>
+        </tr>
+        <tr style="background-color: rgba(90, 155, 213, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">mug-in-bin</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Robot</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">20</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">—</td>
+        </tr>
+        <tr style="background-color: rgba(247, 150, 70, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">mug-on-table</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Human</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">20</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Compositional (novel object-context combination)</td>
+        </tr>
+        <tr style="background-color: rgba(247, 150, 70, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">octopus-on-table</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Human</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">20</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Novel object category</td>
+        </tr>
+        <!-- Cloth Folding -->
+        <tr style="background-color: #f0f0f0;">
+          <td colspan="4" style="padding: 8px; border: 1px solid #ddd; font-weight: bold; font-style: italic; text-align: center;">Cloth Folding</td>
+        </tr>
+        <tr style="background-color: rgba(90, 155, 213, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">fold-onesie</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Robot</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">33</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">—</td>
+        </tr>
+        <tr style="background-color: rgba(90, 155, 213, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">fold-shirt</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Robot</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">50</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">—</td>
+        </tr>
+        <tr style="background-color: rgba(247, 150, 70, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">fold-onesie-ood</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Human</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">17</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Novel object instance</td>
+        </tr>
+        <tr style="background-color: rgba(247, 150, 70, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">fold-onesie-reverse</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Human</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">25</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Novel object instance + Skill composition</td>
+        </tr>
+        <tr style="background-color: rgba(247, 150, 70, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">fold-towel</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Human</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">50</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Novel object category + Skill composition</td>
+        </tr>
+        <!-- LIBERO-Object -->
+        <tr style="background-color: #f0f0f0;">
+          <td colspan="4" style="padding: 8px; border: 1px solid #ddd; font-weight: bold; font-style: italic; text-align: center;">LIBERO-Object</td>
+        </tr>
+        <tr style="background-color: rgba(90, 155, 213, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">LIBERO-Object-9</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Robot</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">450</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">—</td>
+        </tr>
+        <tr style="background-color: rgba(247, 150, 70, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">LIBERO-Object-heldOut</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Robot</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">50</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Novel object category</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Task Demonstrations Placeholder -->
+    <div class="video-gallery-section" id="pick-place-gallery">
+      <div class="video-gallery-container">
+        <div class="video-gallery" id="videoGalleryPickPlace">
+          <!-- Video 1: Plate Table -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">plate-on-table</span>
+                <span style="color: #666;">1/1</span>
+                <span style="font-size: 16px; color: #22c55e;">✓</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/plate_table.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 2: Mug Table -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">mug-on-table</span>
+                <span style="color: #666;">1/1</span>
+                <span style="font-size: 16px; color: #22c55e;">✓</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/mug_table.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 3: Octopus Partial -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">octopus-on-table</span>
+                <span style="color: #666;">0.5/1</span>
+                <span style="font-size: 16px; color: #ef4444;">✗</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/octopus_table_partial.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 4: Octopus Fail -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">octopus-on-table</span>
+                <span style="color: #666;">0/1</span>
+                <span style="font-size: 16px; color: #ef4444;">✗</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/octopus_table_fail.mp4" type="video/mp4">
+            </video>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-caption-container">
+        <div class="gallery-nav-controls">
+          <button class="gallery-nav left" id="scrollLeftBtnPickPlace">&lt;</button>
+          <button class="gallery-nav right" id="scrollRightBtnPickPlace">&gt;</button>
+        </div>
+        <p class="figure-caption gallery-caption">
+          <b>Pick and Place:</b> GHOST generalizes pick-and-place skills to novel objects (mugs, octopus) after training on in-distribution objects (plates). We overlay a colormap on the image to visualize the predicted goal.
+        </p>
+      </div>
+    </div>
+
+    <!-- Cloth Folding Placeholder -->
+    <div class="video-gallery-section" id="cloth-folding-gallery">
+      <div class="video-gallery-container">
+        <div class="video-gallery" id="videoGalleryClothFolding">
+          <!-- Video 1: Onesie Success -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-onesie</span>
+                <span style="color: #666;">5/5</span>
+                <span style="font-size: 16px; color: #22c55e;">✓</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/onesie_rollout_success.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 2: Onesie Reverse -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-onesie-reverse</span>
+                <span style="color: #666;">4/5</span>
+                <span style="font-size: 16px; color: #ef4444;">✗</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/onesie_rollout_reverse.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 3: Towel Partial -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-towel</span>
+                <span style="color: #666;">1/2</span>
+                <span style="font-size: 16px; color: #ef4444;">✗</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/towel_rollout_partial.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 4: Towel Fail -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-towel</span>
+                <span style="color: #666;">0/2</span>
+                <span style="font-size: 16px; color: #ef4444;">✗</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/towel_rollout_fail.mp4" type="video/mp4">
+            </video>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-caption-container">
+        <div class="gallery-nav-controls">
+          <button class="gallery-nav left" id="scrollLeftBtnClothFolding">&lt;</button>
+          <button class="gallery-nav right" id="scrollRightBtnClothFolding">&gt;</button>
+        </div>
+        <p class="figure-caption gallery-caption">
+          <b>Cloth Folding:</b> After training on folding onesies and t-shirts (in-distribution), GHOST shows meaningful progress in <i>compositional skill generalization</i> to different garment instances and novel folding patterns. We overlay a colormap on the image to visualize the predicted goal.
+        </p>
+      </div>
+    </div>
+
+    <!-- Results Tables -->
+    <div class="section">
+      <h3 style="font-family: 'Roboto Mono', monospace; font-size: 18px; margin-top: 30px;">Pick and Place Results</h3>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-family: 'Roboto Mono', monospace; font-size: 14px;">
+        <thead>
+          <tr style="background-color: #333; color: white;">
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Method</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: rgb(90, 155, 213);"><span style="color: white;">plate-on-table</span></th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: rgb(247, 150, 70);"><span style="color: white;">mug-on-table</span></th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: rgb(247, 150, 70);"><span style="color: white;">octopus-on-table</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background-color: #f9f9f9;">
+            <td style="padding: 10px; border: 1px solid #ddd;">DP</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold;">60</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold;">5</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">Hierarchical DP w/out Human</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">70</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+          </tr>
+          <tr style="background-color: #f9f9f9;">
+            <td style="padding: 10px; border: 1px solid #ddd;">GHOST (Ours)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold;">60</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">32.5</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">20</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="font-family: 'Roboto Mono', monospace; font-size: 18px; margin-top: 40px;">Cloth Folding Results</h3>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-family: 'Roboto Mono', monospace; font-size: 14px;">
+        <thead>
+          <tr style="background-color: #333; color: white;">
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Task</th>
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Method</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">1-step</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">2-step</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">3-step</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">4-step</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Final</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- fold-onesie (ID) -->
+          <tr>
+            <td rowspan="3" style="padding: 10px; border: 1px solid #ddd; font-weight: bold; background-color: rgba(90, 155, 213, 0.2);">fold-onesie</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">DP</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">70</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">30</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">Hierarchical DP w/out Human</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">80</td>
+          </tr>
+          <tr style="border-bottom: 3px solid #666;">
+            <td style="padding: 10px; border: 1px solid #ddd; border-bottom: 3px solid #666;">GHOST (Ours)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; border-bottom: 3px solid #666;">90</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; border-bottom: 3px solid #666;">90</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; border-bottom: 3px solid #666;">70</td>
+          </tr>
+          <!-- fold-onesie-ood (OOD) -->
+          <tr>
+            <td rowspan="3" style="padding: 10px; border: 1px solid #ddd; font-weight: bold; background-color: rgba(247, 150, 70, 0.2);">fold-onesie-ood<br><span style="font-weight: normal; font-size: 12px;">(Novel Instance)</span></td>
+            <td style="padding: 10px; border: 1px solid #ddd;">DP</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">40</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">40</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">10</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">Hierarchical DP w/out Human</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">60</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">50</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">40</td>
+          </tr>
+          <tr style="border-bottom: 3px solid #666;">
+            <td style="padding: 10px; border: 1px solid #ddd; border-bottom: 3px solid #666;">GHOST (Ours)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">90</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">70</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">50</td>
+          </tr>
+          <!-- fold-onesie-reverse (OOD) -->
+          <tr style="border-bottom: 3px solid #666;">
+            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; background-color: rgba(247, 150, 70, 0.2); border-bottom: 3px solid #666;">fold-onesie-reverse<br><span style="font-weight: normal; font-size: 12px;">(Novel Composition)</span></td>
+            <td style="padding: 10px; border: 1px solid #ddd; border-bottom: 3px solid #666;">GHOST (Ours)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; border-bottom: 3px solid #666;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; border-bottom: 3px solid #666;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; border-bottom: 3px solid #666;">70</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; border-bottom: 3px solid #666;">20</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; border-bottom: 3px solid #666;">0</td>
+          </tr>
+          <!-- fold-towel (OOD) -->
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; background-color: rgba(247, 150, 70, 0.2);">fold-towel<br><span style="font-weight: normal; font-size: 12px;">(Novel Category)</span></td>
+            <td style="padding: 10px; border: 1px solid #ddd;">GHOST (Ours)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">60</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">—</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">—</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">—</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">5</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="font-family: 'Roboto Mono', monospace; font-size: 18px; margin-top: 40px;">LIBERO-Object Results</h3>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-family: 'Roboto Mono', monospace; font-size: 14px;">
+        <thead>
+          <tr style="background-color: #333; color: white;">
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Method</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: rgb(90, 155, 213);"><span style="color: white;">LIBERO-Object-9</span></th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: rgb(247, 150, 70);"><span style="color: white;">LIBERO-Object-heldOut</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background-color: #f9f9f9;">
+            <td style="padding: 10px; border: 1px solid #ddd;">DP</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold;">88</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">Hierarchical DP</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">90</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">24</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Results Summary -->
+    <div class="section" style="margin-top: 40px;">
+      <h3 style="font-family: 'Roboto Mono', monospace; font-size: 18px; margin-bottom: 15px;">Key Findings</h3>
+
+      <p style="font-family: 'Roboto Mono', monospace; font-size: 14px; line-height: 1.6; margin-bottom: 15px;">
+        <b>Do hierarchical policies improve performance on in-distribution tasks?</b><br>
+        Yes. Hierarchical DP w/out Human outperforms flat DP on ID tasks. We see modest performance gains on simpler tasks (70% vs 60% on <span style="color: rgb(90, 155, 213); font-weight: bold;">plate-on-table</span> and 90% vs 88% on <span style="color: rgb(90, 155, 213); font-weight: bold;">LIBERO-Object-9</span>). However, we see a significant increase on <span style="color: rgb(90, 155, 213); font-weight: bold;">fold-onesie</span> (80% vs 0% final success), indicating that the hierarchical factorization is especially critical for long-horizon tasks. GHOST achieves comparable ID performance, suggesting that training π<sub>hi</sub> with human demonstrations does not meaningfully degrade in-distribution behavior.
+      </p>
+
+      <p style="font-family: 'Roboto Mono', monospace; font-size: 14px; line-height: 1.6; margin-bottom: 15px;">
+        <b>Do human demonstrations enable transferring learned skills to novel object instances and categories?</b><br>
+        Yes. Human demonstrations unlock meaningful OOD transfer of learned skills to novel objects. GHOST achieves 32.5% success on <span style="color: rgb(247, 150, 70); font-weight: bold;">mug-on-table</span> and 20% on <span style="color: rgb(247, 150, 70); font-weight: bold;">octopus-on-table</span> vs 0% for both baselines. On <span style="color: rgb(247, 150, 70); font-weight: bold;">fold-onesie-ood</span> (novel instance), GHOST achieves 50% final success vs 40% for Hierarchical DP w/out Human and 0% for flat DP. The hierarchical baseline's complete failure on pick-and-place OOD (despite 70% ID performance) confirms that human demos are critical for generalizing goal prediction. For LIBERO, we demonstrate that by training π<sub>hi</sub> on <span style="color: rgb(247, 150, 70); font-weight: bold;">LIBERO-Object-heldOut</span>, hierarchical modeling enables 24% OOD success vs 0% for flat DP.
+      </p>
+
+      <p style="font-family: 'Roboto Mono', monospace; font-size: 14px; line-height: 1.6;">
+        <b>Do human demonstrations enable compositional generalization of learned skills?</b><br>
+        Partially, but performance degrades sharply with horizon. On <span style="color: rgb(247, 150, 70); font-weight: bold;">fold-onesie-reverse</span> (novel instance + skill composition), GHOST maintains 100% success through 2 steps and 70% at 3 steps but drops to 0% for final success. Similarly, on <span style="color: rgb(247, 150, 70); font-weight: bold;">fold-towel</span> (novel category + skill composition), the degradation is more severe: 60% 1-step success drops to 5% final. The visual domain gap between human and robot data appears to compound across sub-goals, suggesting that the high-level policy struggles to maintain accurate goal predictions as errors accumulate.
+      </p>
+    </div>
+
+    <!-- BibTeX -->
+    <div class="bibtex-code" id="bibtex">
+      <div class="bibtex-title">BibTeX</div>
+      <div style="height: 150px; background-color: rgba(60, 60, 60, 0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-top: 10px;">
+        <p style="font-family: 'Roboto Mono', monospace; color: #999; font-size: 16px;">Coming soon</p>
+      </div>
+    </div>
+
+  </div> <!-- End of main-content div -->
+
+  <div class="footer">
+    Website template modified from <a href="https://videomimic.net/" target="_blank">VideoMimic</a>.
+  </div>
+
+  <!-- JavaScript for Video Gallery Navigation -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const galleries = [
+        {
+          galleryInnerId: 'videoGalleryPickPlace',
+          scrollLeftBtnId: 'scrollLeftBtnPickPlace',
+          scrollRightBtnId: 'scrollRightBtnPickPlace'
+        },
+        {
+          galleryInnerId: 'videoGalleryClothFolding',
+          scrollLeftBtnId: 'scrollLeftBtnClothFolding',
+          scrollRightBtnId: 'scrollRightBtnClothFolding'
+        }
+      ];
+
+      galleries.forEach(galleryConfig => {
+        const galleryContainer = document.getElementById(galleryConfig.galleryInnerId);
+        const scrollLeftBtn = document.getElementById(galleryConfig.scrollLeftBtnId);
+        const scrollRightBtn = document.getElementById(galleryConfig.scrollRightBtnId);
+
+        if (galleryContainer && scrollLeftBtn && scrollRightBtn) {
+          const scrollAmount = 365; // Width of placeholder + gap
+
+          scrollLeftBtn.addEventListener('click', () => {
+            galleryContainer.parentElement.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+          });
+
+          scrollRightBtn.addEventListener('click', () => {
+            galleryContainer.parentElement.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+          });
+        }
+      });
+    });
+  </script>
+
+  <!-- Three.js for 3D Viewers -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/PLYLoader.js"></script>
+
+  <!-- 3D Viewer Script -->
+  <script>
+    function createViewer(canvasId, meshFiles, cameraPosition) {
+      const canvas = document.getElementById(canvasId);
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+
+      // Scene setup
+      const scene = new THREE.Scene();
+      scene.background = null;
+
+      // Camera
+      const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+      camera.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+
+      // Renderer
+      const renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        alpha: true,
+        antialias: true
+      });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(window.devicePixelRatio);
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+
+      const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.5);
+      directionalLight1.position.set(5, 5, 5);
+      scene.add(directionalLight1);
+
+      const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
+      directionalLight2.position.set(-5, -5, -5);
+      scene.add(directionalLight2);
+
+      // Controls
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.screenSpacePanning = false;
+      controls.minDistance = 0.1;
+      controls.maxDistance = 10;
+
+      // Load PLY files
+      const loader = new THREE.PLYLoader();
+      const meshes = [];
+      let loadedCount = 0;
+
+      meshFiles.forEach((file, index) => {
+        loader.load(file.path, function(geometry) {
+          geometry.computeVertexNormals();
+
+          const material = new THREE.MeshPhongMaterial({
+            vertexColors: true,
+            specular: 0x111111,
+            shininess: 30
+          });
+
+          const mesh = new THREE.Mesh(geometry, material);
+          meshes.push(mesh);
+          scene.add(mesh);
+
+          loadedCount++;
+
+          // After all meshes are loaded, center them as a group
+          if (loadedCount === meshFiles.length) {
+            const box = new THREE.Box3();
+            meshes.forEach(m => box.expandByObject(m));
+            const center = box.getCenter(new THREE.Vector3());
+            meshes.forEach(m => m.position.sub(center));
+          }
+        },
+        // Progress callback
+        function(xhr) {
+          console.log((xhr.loaded / xhr.total * 100) + '% loaded: ' + file.path);
+        },
+        // Error callback
+        function(error) {
+          console.error('Error loading ' + file.path + ':', error);
+        });
+      });
+
+      // Animation loop
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // Handle window resize
+      window.addEventListener('resize', () => {
+        const newWidth = canvas.clientWidth;
+        const newHeight = canvas.clientHeight;
+        camera.aspect = newWidth / newHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(newWidth, newHeight);
+      });
+    }
+
+    // Initialize viewers when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      // ALOHA Gripper viewer
+      createViewer('aloha-viewer', [
+        { path: 'meshes/aloha_gripper.ply' },
+        { path: 'meshes/aloha_spheres.ply' }
+      ], { x: 0.15, y: 0.1, z: 0.15 });
+
+      // Hand viewer
+      createViewer('hand-viewer', [
+        { path: 'meshes/hand_gripper.ply' },
+        { path: 'meshes/hand_spheres.ply' }
+      ], { x: 0.15, y: 0.1, z: 0.15 });
+    });
+  </script>
+
+</body>
+</html>
