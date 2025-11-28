@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GHOST: Hierarchical Sub-Goal Policies for Generalizing Robot Manipulation</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="toc">
+    <h3>Content</h3>
+    <hr>
+    <ul>
+      <li><a href="#abstract">Abstract</a></li>
+      <li><a href="#approach">Approach</a></li>
+      <li class="toc-subsection"><a href="#data-collection">Data Collection</a></li>
+      <li class="toc-subsection"><a href="#high-level-policy">High-Level Policy</a></li>
+      <li class="toc-subsection"><a href="#low-level-policy">Low-Level Policy</a></li>
+      <li><a href="#interactive-visualization">Interactive Visualization</a></li>
+      <li><a href="#experiments">Experiments</a></li>
+      <li><a href="#bibtex">BibTeX</a></li>
+    </ul>
+  </div>
+
+  <div class="main-content">
+    <div class="hero-text">👻 GHOST</div>
+    <div class="sub-hero-text">Hierarchical Sub-Goal Policies for Generalizing Robot Manipulation</div>
+
+    <!-- Teaser Figure -->
+    <div style="width: 100%; margin: 20px 0;">
+      <img src="figs/ghost-teaser.png" alt="GHOST Teaser Figure" style="width: 100%; border-radius: 15px; border: 1.5px solid #000;">
+    </div>
+    <!-- Caption for Teaser -->
+    <p class="figure-caption">
+      <b>GHOST</b> learns skills from robot teleoperation data and optionally uses human demonstrations to generalize to novel tasks. We train a hierarchical policy that decouples task-specific goal prediction (π<sub>hi</sub>) from embodiment-specific action execution (π<sub>lo</sub>). By training π<sub>hi</sub> on both robot and human data and π<sub>lo</sub> purely on robot data, GHOST transfers learned manipulation skills to out-of-distribution tasks with third person human video demonstrations.
+    </p>
+
+    <div class="tagline" id="abstract">Abstract.</div>
+
+    <div class="section">
+      We present <b>GHOST</b>, a framework for learning visuomotor manipulation policies that <i>generalize</i> beyond the training distribution. GHOST factorizes control into (i) a high-level policy that predicts the next sub-goal as a <i>distribution</i> over 3D end-effector poses from multi-view RGB-D observations, and (ii) a low-level goal-conditioned controller that executes embodiment-specific actions. To condition image-based policies on 3D goals, we introduce a simple spatial interface that projects predicted goals into the image plane and represents them as <i>end-effector heatmaps</i>. Across a suite of manipulation tasks, this hierarchical factorization consistently improves performance and robustness compared to a flat Diffusion Policy.
+      <br><br>
+      Further, we show that this hierarchical interface also makes it easy to incorporate human demonstrations without relying on (noisy) action retargeting. As sub-goals are largely embodiment-agnostic, we train the high-level policy on human video to specify how learned skills should be applied and composed, while keeping the low-level policy trained purely on robot data. This hierarchy enables adaptation to novel objects and task variations using a small number of human demonstrations.
+    </div>
+
+    <div class="tagline" id="approach">Approach.</div>
+
+    <div class="section">
+      The GHOST framework learns a hierarchy over <i>sub-goal end-effector poses</i>. During training, sub-goal boundaries provide supervision for the high-level planner π<sub>hi</sub>, while the full robot trajectories provide action supervision for the low-level controller π<sub>lo</sub>. At test time, π<sub>hi</sub> predicts the next end-effector sub-goal (as a distribution) from workspace observations and language, and π<sub>lo</sub> executes goal-conditioned control toward that sub-goal. This separation isolates long-horizon reasoning in π<sub>hi</sub> and maintains precise, embodiment-specific control in π<sub>lo</sub>.
+    </div>
+
+    <div class="section-subtitle" id="data-collection">1. Data Collection and Processing.</div>
+
+    <div class="section">
+      We collect two types of demonstrations: robot teleoperation data and human demonstrations. For robot data, we collect demonstrations across multiple task variants, each demonstrating the same skill (e.g., pick-and-place), to provide in-distribution coverage. Sub-goals are extracted automatically by identifying timesteps where the gripper state changes. For human data, we collect demonstrations of the same skill in novel settings using new objects or novel applications. We track 3D hand poses using off-the-shelf hand pose estimators and manually annotate sub-goal timesteps.
+
+    <!-- Demonstration Videos: Robot vs Human -->
+    <div style="width: 100%; margin: 30px 0;">
+      <div style="display: flex; gap: 20px; justify-content: center; align-items: flex-start; margin-bottom: 10px;">
+        <div style="width: 48%; text-align: center;">
+          <video style="width: 100%; border-radius: 15px; border: 1.5px solid #000;" autoplay loop muted playsinline>
+            <source src="vids/onesie_teleop.mp4" type="video/mp4">
+          </video>
+        </div>
+        <div style="width: 48%; text-align: center;">
+          <video style="width: 100%; border-radius: 15px; border: 1.5px solid #000;" autoplay loop muted playsinline>
+            <source src="vids/towel_human_demo.mp4" type="video/mp4">
+          </video>
+        </div>
+      </div>
+    </div>
+
+    <!-- Human Demo Supercut -->
+    <div style="width: 100%; margin: 20px 0; text-align: center;">
+      <video style="width: 100%; border-radius: 15px; border: 1.5px solid #000;" autoplay loop muted playsinline>
+        <source src="vids/human_demo_supercut.mp4" type="video/mp4">
+      </video>
+      <p class="figure-caption">
+        <b>Human demonstration collection.</b> We collect human video demonstrations for out-of-distribution generalization, annotating sub-goal timesteps where key manipulation events occur (e.g., grasping, placing, folding transitions).
+      </p>
+    </div>
+  
+      To enable cross-embodiment transfer, we represent end-effector poses as a set of 4 3D keypoints that can be extracted from both robot grippers and human hands: the gripper base/palm, finger tips, and grasping center. This unified representation allows the high-level policy to be trained on both robot and human demonstrations.
+    </div>
+
+    <!-- 3D Viewers for End-Effector Representations -->
+    <div style="width: 100%; margin: 30px 0; display: flex; gap: 20px; justify-content: center; align-items: flex-start;">
+      <div style="width: 48%; text-align: center;">
+        <canvas id="aloha-viewer" style="width: 100%; height: 350px; border-radius: 15px; border: 1.5px solid #000; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);"></canvas>
+        <p style="font-family: 'Roboto Mono', monospace; font-size: 14px; margin-top: 10px; color: #333;">ALOHA Gripper</p>
+      </div>
+      <div style="width: 48%; text-align: center;">
+        <canvas id="hand-viewer" style="width: 100%; height: 350px; border-radius: 15px; border: 1.5px solid #000; background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);"></canvas>
+        <p style="font-family: 'Roboto Mono', monospace; font-size: 14px; margin-top: 10px; color: #333;">MANO Hand</p>
+      </div>
+    </div>
+    <p class="figure-caption">
+    <b>End-effector representations for robot and human demonstrations.</b> Instead of explicitly retargeting the gripper pose to a translation and SO(3) rotation, we represent gripper poses as sets of 3D keypoints (red spheres): gripper base, fingertip locations, and grasping center. <i>Left</i>: Parallel-jaw gripper. <i>Right</i>: MANO hand. (Interactive - drag to rotate, scroll to zoom)
+    </p>
+
+    <div class="section-subtitle" id="high-level-policy">2. High-Level Goal Prediction Policy.</div>
+
+    <!-- High-Level Policy Figure -->
+    <div style="width: 100%; margin: 20px 0;">
+      <img src="figs/dino_3dgp.png" alt="High-Level Goal Prediction Architecture" style="width: 100%; border-radius: 15px; border: 1.5px solid #000;">
+    </div>
+    <p class="figure-caption">
+      <b>GHOST High-level goal prediction architecture:</b> RGB-D observations from multiple cameras are processed with a DINOv3 encoder, with patch tokens augmented by 3D coordinates. Additional context (gripper state, language embedding, embodiment name) is encoded via separate MLPs. An encoder-only transformer processes all tokens, with each patch predicting GMM parameters of a 3D goal distribution over end-effector keypoints.
+    </p>
+
+    <div class="section">
+      The high-level policy π<sub>hi</sub> predicts the end-effector pose at the next sub-goal timestep. We parameterize it as an encoder-only transformer operating on RGB-D observations from multiple cameras. Each RGB-D image is processed independently with a frozen DINOv3 encoder, producing patch tokens that are augmented with 3D coordinates of the patch center. Additional tokens encode the current gripper pose, language embedding via Flan-T5, and a learnable token specifying whether the demonstration is from a human or robot. To handle multimodality in demonstrations, we model the goal distribution as a dense per-patch Gaussian Mixture Model (GMM) where each patch predicts mixing weights and 3D residual vectors relative to its patch center.
+    </div>
+
+    <!-- GMM Inference Figure -->
+    <div style="width: 100%; margin: 20px 0;">
+      <video style="width: 100%; border-radius: 15px; border: 1.5px solid #000;" autoplay loop muted playsinline>
+        <source src="vids/gmm_quiver_vis.mp4" type="video/mp4">
+      </video>
+    </div>
+    <p class="figure-caption">
+      <b>High-level policy GMM predictions at inference.</b> We visualize the mixture components of the GMM, with the opacity encoding mixing weight w<sub>i</sub> and arrows showing projections of 3D residuals δ<sub>i</sub> from patch centers p<sub>i</sub>.
+    </p>
+
+    <div class="section-subtitle" id="low-level-policy">3. Low-Level Goal-Conditioned Policy.</div>
+
+    <div class="section">
+      We instantiate π<sub>lo</sub> as a Diffusion Policy that generates action chunks by denoising conditioned on observations and spatial goals. Each point in the 3D goal is projected onto the image plane of each camera using camera parameters, yielding sparse 2D coordinates. These are converted to dense <i>end-effector heatmaps</i> where each channel encodes the pixel distance field from each keypoint. We choose heatmaps as goal representations because they provide smooth gradients at many spatial locations for optimization stability.
+    </div>
+
+    <!-- End-Effector Heatmap Figure -->
+    <div style="width: 100%; margin: 20px 0;">
+      <img src="figs/eef_heatmap.png" alt="End-Effector Heatmap Generation" style="width: 100%; border-radius: 15px; border: 1.5px solid #000;">
+    </div>
+    <p class="figure-caption">
+      <b>End-effector heatmap generation for goal conditioning.</b> Predicted 3D keypoints are projected to 2D coordinates, and then converted to dense distance field heatmaps that encode spatial proximity to each keypoint.
+    </p>
+
+    <!-- Low-Level Architecture Figure -->
+    <div style="width: 100%; margin: 20px 0;">
+      <img src="figs/low_level_arch.png" alt="Low-Level Goal-Conditioned Policy Architecture" style="width: 100%; border-radius: 15px; border: 1.5px solid #000;">
+    </div>
+    <p class="figure-caption">
+      <b>GHOST Low-level goal-conditioned policy architecture.</b> Images from each camera and the projected end-effector heatmap images are processed independently with ResNet encoders and concatenated along with the proprioceptive input into a global conditioning vector for the Diffusion Policy.
+    </p>
+
+    <div class="tagline" id="interactive-visualization">Interactive 4D Visualization.</div>
+
+    <div class="section">
+      Explore an interactive visualization of a GHOST rollout on the onesie folding task. The viewer contains synchronized feeds from 3 workspace cameras alongside a 3D point cloud reconstruction of the scene, all scrubbable over time. Drag to rotate the 3D view, scroll to zoom. Use the timeline at the bottom to scrub through the episode. (Video downsampled for efficient streaming).
+    </div>
+
+    <div style="width: 85vw; position: relative; margin-left: calc((100% - 85vw) / 2); box-sizing: border-box;">
+      <iframe src="https://app.rerun.io/version/latest/?url=https://ghost-human-demo.github.io/fold_onesie_gc_20260124_recording.rrd" style="width: 100%; height: 85vh; border: 1.5px solid #000; border-radius: 15px;" allow="fullscreen"></iframe>
+    </div>
+    <p class="figure-caption">
+      <b>Interactive 4D visualization of a GHOST rollout.</b> 3 synchronized camera views and a 3D point cloud reconstruction, powered by <a href="https://rerun.io" target="_blank" style="color: #555; text-decoration: underline;">Rerun</a>. Drag to rotate the 3D view, scroll to zoom, and use the timeline to scrub through the episode.
+    </p>
+
+    <div class="tagline" id="experiments">Experiments and Results.</div>
+
+    <div class="section">
+      We evaluate GHOST across multiple challenging real-world manipulation tasks to demonstrate both in-distribution performance improvements and out-of-distribution generalization through human demonstrations.
+    </div>
+
+    <h3 style="font-family: 'Roboto Mono', monospace; font-size: 18px; margin-top: 30px;">Task Overview</h3>
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-family: 'Roboto Mono', monospace; font-size: 14px;">
+      <thead>
+        <tr style="background-color: #333; color: white;">
+          <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Task</th>
+          <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Data Source</th>
+          <th style="padding: 12px; text-align: center; border: 1px solid #ddd;"># Demos</th>
+          <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Generalization Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Pick-and-Place -->
+        <tr style="background-color: #f0f0f0;">
+          <td colspan="4" style="padding: 8px; border: 1px solid #ddd; font-weight: bold; font-style: italic; text-align: center;">Pick-and-Place</td>
+        </tr>
+        <tr style="background-color: rgba(90, 155, 213, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">plate-on-table</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Robot</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">20</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">—</td>
+        </tr>
+        <tr style="background-color: rgba(90, 155, 213, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">plate-in-bin</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Robot</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">20</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">—</td>
+        </tr>
+        <tr style="background-color: rgba(90, 155, 213, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">mug-in-bin</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Robot</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">20</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">—</td>
+        </tr>
+        <tr style="background-color: rgba(247, 150, 70, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">mug-on-table</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Human</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">20</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Object combination</td>
+        </tr>
+        <!-- Cloth Folding -->
+        <tr style="background-color: #f0f0f0;">
+          <td colspan="4" style="padding: 8px; border: 1px solid #ddd; font-weight: bold; font-style: italic; text-align: center;">Cloth Folding</td>
+        </tr>
+        <tr style="background-color: rgba(90, 155, 213, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">fold-onesie</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Robot</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">33</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">—</td>
+        </tr>
+        <tr style="background-color: rgba(90, 155, 213, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">fold-shirt</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Robot</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">50</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">—</td>
+        </tr>
+        <tr style="background-color: rgba(247, 150, 70, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">fold-onesie-ood</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Human</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">17</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Object instance</td>
+        </tr>
+        <tr style="background-color: rgba(247, 150, 70, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">fold-towel</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Human</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">50</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Object category + Skill composition</td>
+        </tr>
+        <!-- Hammer Pin -->
+        <tr style="background-color: #f0f0f0;">
+          <td colspan="4" style="padding: 8px; border: 1px solid #ddd; font-weight: bold; font-style: italic; text-align: center;">Hammer Pin</td>
+        </tr>
+        <tr style="background-color: rgba(90, 155, 213, 0.2);">
+          <td style="padding: 10px; border: 1px solid #ddd;">hammer-pin</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">Human+Robot</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">100</td>
+          <td style="padding: 10px; border: 1px solid #ddd;">—</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Task Demonstrations Placeholder -->
+    <div class="video-gallery-section" id="pick-place-gallery">
+      <div class="video-gallery-container">
+        <div class="video-gallery" id="videoGalleryPickPlace">
+          <!-- Video 1: Plate Table 0 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">plate-on-table</span>
+                <span style="color: #666;">1/1</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/plate_table_0.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 2: Plate Table 1 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">plate-on-table</span>
+                <span style="color: #666;">1/1</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/plate_table_1.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 3: Plate Table 4 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">plate-on-table</span>
+                <span style="color: #666;">1/1</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/plate_table_4.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 4: Mug Table 1 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">mug-on-table</span>
+                <span style="color: #666;">1/1</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/mug_table_1.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 5: Mug Table 3 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">mug-on-table</span>
+                <span style="color: #666;">1/1</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/mug_table_3.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 6: Mug Table 5 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">mug-on-table</span>
+                <span style="color: #666;">0/1</span>
+                <span style="font-size: 16px; color: #ef4444;">&#10007;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/mug_table_5.mp4" type="video/mp4">
+            </video>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-caption-container">
+        <div class="gallery-nav-controls">
+          <button class="gallery-nav left" id="scrollLeftBtnPickPlace">&lt;</button>
+          <button class="gallery-nav right" id="scrollRightBtnPickPlace">&gt;</button>
+        </div>
+        <p class="figure-caption gallery-caption">
+          <b>Pick and Place:</b> GHOST generalizes pick-and-place skills to novel object combinations (mug-on-table) after training on in-distribution tasks (plate-on-table, plate-in-bin, mug-in-bin). We overlay a colormap on the image to visualize the predicted goal.
+        </p>
+      </div>
+    </div>
+
+    <!-- Hammer Pin Gallery -->
+    <div class="video-gallery-section" id="hammer-pin-gallery">
+      <div class="video-gallery-container">
+        <div class="video-gallery" id="videoGalleryHammerPin">
+          <!-- Video 1: Hammer Pin 3 (Success) -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">hammer-pin</span>
+                <span style="color: #666;">1/1</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/hammer_pin_3.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 2: Hammer Pin 4 (Success) -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">hammer-pin</span>
+                <span style="color: #666;">1/1</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/hammer_pin_4.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 3: Hammer Pin 5 (Success) -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">hammer-pin</span>
+                <span style="color: #666;">1/1</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/hammer_pin_5.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 4: Hammer Pin 1 (Failure) -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">hammer-pin</span>
+                <span style="color: #666;">0/1</span>
+                <span style="font-size: 16px; color: #ef4444;">&#10007;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/hammer_pin_1.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 5: Hammer Pin 2 (Failure) -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">hammer-pin</span>
+                <span style="color: #666;">0/1</span>
+                <span style="font-size: 16px; color: #ef4444;">&#10007;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/hammer_pin_2.mp4" type="video/mp4">
+            </video>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-caption-container">
+        <div class="gallery-nav-controls">
+          <button class="gallery-nav left" id="scrollLeftBtnHammerPin">&lt;</button>
+          <button class="gallery-nav right" id="scrollRightBtnHammerPin">&gt;</button>
+        </div>
+        <p class="figure-caption gallery-caption">
+          <b>Hammer Pin:</b> Pick up a hammer and strike the target pin. The task requires precise grasping of the hammer tool and striking the correct pin. We overlay a colormap on the image to visualize the predicted goal.
+        </p>
+      </div>
+    </div>
+
+    <!-- Cloth Folding Placeholder -->
+    <div class="video-gallery-section" id="cloth-folding-gallery">
+      <div class="video-gallery-container">
+        <div class="video-gallery" id="videoGalleryClothFolding">
+          <!-- Video 1: Fold Onesie 0 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-onesie</span>
+                <span style="color: #666;">5/5</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/fold_onesie_0.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 2: Fold Onesie 2 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-onesie</span>
+                <span style="color: #666;">5/5</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/fold_onesie_2.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 3: Fold Onesie 6 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-onesie</span>
+                <span style="color: #666;">5/5</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/fold_onesie_6.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 4: OOD Onesie 0 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-onesie-ood</span>
+                <span style="color: #666;">5/5</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/ood_onesie_0.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 5: OOD Onesie 1 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-onesie-ood</span>
+                <span style="color: #666;">4/5</span>
+                <span style="font-size: 16px; color: #ef4444;">&#10007;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/ood_onesie_1.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 6: OOD Onesie 4 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-onesie-ood</span>
+                <span style="color: #666;">5/5</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/ood_onesie_4.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 7: Fold Towel 0 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-towel</span>
+                <span style="color: #666;">0/1</span>
+                <span style="font-size: 16px; color: #ef4444;">&#10007;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/fold_towel_0.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 8: Fold Towel 2 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-towel</span>
+                <span style="color: #666;">0/1</span>
+                <span style="font-size: 16px; color: #ef4444;">&#10007;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/fold_towel_2.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 9: Fold Towel 4 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-towel</span>
+                <span style="color: #666;">1/1</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/fold_towel_4.mp4" type="video/mp4">
+            </video>
+          </div>
+          <!-- Video 10: Fold Towel 8 -->
+          <div style="width: 350px; flex-shrink: 0;">
+            <div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 15px 15px 0 0; border: 1.5px solid #000; border-bottom: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+                <span style="font-weight: bold;">fold-towel</span>
+                <span style="color: #666;">1/1</span>
+                <span style="font-size: 16px; color: #22c55e;">&#10003;</span>
+              </div>
+            </div>
+            <video style="width: 100%; height: 220px; border-radius: 0 0 15px 15px; border: 1.5px solid #000; border-top: none; object-fit: cover;" autoplay loop muted playsinline>
+              <source src="vids/fold_towel_8.mp4" type="video/mp4">
+            </video>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-caption-container">
+        <div class="gallery-nav-controls">
+          <button class="gallery-nav left" id="scrollLeftBtnClothFolding">&lt;</button>
+          <button class="gallery-nav right" id="scrollRightBtnClothFolding">&gt;</button>
+        </div>
+        <p class="figure-caption gallery-caption">
+          <b>Cloth Folding:</b> After training on folding onesies and shirts (in-distribution), GHOST shows meaningful progress in generalizing to novel object instances (fold-onesie-ood) and novel object categories with skill composition (fold-towel). We overlay a colormap on the image to visualize the predicted goal.
+        </p>
+      </div>
+    </div>
+
+    <!-- Results Tables -->
+    <div class="section">
+      <h3 style="font-family: 'Roboto Mono', monospace; font-size: 18px; margin-top: 30px;">Pick and Place Results</h3>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-family: 'Roboto Mono', monospace; font-size: 14px;">
+        <thead>
+          <tr style="background-color: #333; color: white;">
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Method</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: rgb(90, 155, 213);"><span style="color: white;">plate-on-table</span></th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: rgb(247, 150, 70);"><span style="color: white;">mug-on-table</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background-color: #f9f9f9;">
+            <td style="padding: 10px; border: 1px solid #ddd;">DP</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">90</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">10</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">MimicPlay</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">50</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">30</td>
+          </tr>
+          <tr style="background-color: #f9f9f9;">
+            <td style="padding: 10px; border: 1px solid #ddd;">GHOST (Ours - Robot Only)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">90</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">60</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">GHOST (Ours)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">70</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="font-family: 'Roboto Mono', monospace; font-size: 18px; margin-top: 40px;">Onesie Folding Results</h3>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-family: 'Roboto Mono', monospace; font-size: 14px;">
+        <thead>
+          <tr style="background-color: #333; color: white;">
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Task</th>
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Method</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">1-step</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">2-step</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">3-step</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">4-step</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Final</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- fold-onesie (ID) -->
+          <tr>
+            <td rowspan="4" style="padding: 10px; border: 1px solid #ddd; font-weight: bold; background-color: rgba(90, 155, 213, 0.2);">fold-onesie</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">DP</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">80</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">60</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">50</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">40</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">20</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">MimicPlay</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">90</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">80</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">80</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">80</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">50</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">GHOST (Ours - Robot Only)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">90</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">90</td>
+          </tr>
+          <tr style="border-bottom: 3px solid #666;">
+            <td style="padding: 10px; border: 1px solid #ddd; border-bottom: 3px solid #666;">GHOST (Ours)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">90</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">90</td>
+          </tr>
+          <!-- fold-onesie-ood (OOD) -->
+          <tr>
+            <td rowspan="4" style="padding: 10px; border: 1px solid #ddd; font-weight: bold; background-color: rgba(247, 150, 70, 0.2);">fold-onesie-ood<br><span style="font-weight: normal; font-size: 12px;">(Novel Object Instance)</span></td>
+            <td style="padding: 10px; border: 1px solid #ddd;">DP</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">40</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">40</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">10</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">MimicPlay</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">70</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">40</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">40</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">40</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">0</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">GHOST (Ours - Robot Only)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">60</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">50</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">40</td>
+          </tr>
+          <tr style="border-bottom: 3px solid #666;">
+            <td style="padding: 10px; border: 1px solid #ddd; border-bottom: 3px solid #666;">GHOST (Ours)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">100</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">90</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">70</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold; border-bottom: 3px solid #666;">50</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="font-family: 'Roboto Mono', monospace; font-size: 18px; margin-top: 40px;">Towel Folding Results</h3>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-family: 'Roboto Mono', monospace; font-size: 14px;">
+        <thead>
+          <tr style="background-color: #333; color: white;">
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Method</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: rgb(247, 150, 70);"><span style="color: white;">fold-towel (Novel Category + Skill Composition)</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background-color: #f9f9f9;">
+            <td style="padding: 10px; border: 1px solid #ddd;">MimicPlay</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">20</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">GHOST (Ours)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">40</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="font-family: 'Roboto Mono', monospace; font-size: 18px; margin-top: 40px;">Hammer Pin Results</h3>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-family: 'Roboto Mono', monospace; font-size: 14px;">
+        <thead>
+          <tr style="background-color: #333; color: white;">
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Method</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: rgb(90, 155, 213);"><span style="color: white;">hammer-pin</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background-color: #f9f9f9;">
+            <td style="padding: 10px; border: 1px solid #ddd;">DP</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">20</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">GHOST (Ours - Robot Only)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; text-decoration: underline;">60</td>
+          </tr>
+          <tr style="background-color: #f9f9f9;">
+            <td style="padding: 10px; border: 1px solid #ddd;">GHOST (Ours)</td>
+            <td style="padding: 10px; text-align: center; border: 1px solid #ddd; background-color: #d3d3d3; font-weight: bold;">70</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Results Summary -->
+    <div class="section" style="margin-top: 40px;">
+      <h3 style="font-family: 'Roboto Mono', monospace; font-size: 18px; margin-bottom: 15px;">Key Findings</h3>
+
+      <p style="font-family: 'Roboto Mono', monospace; font-size: 14px; line-height: 1.6; margin-bottom: 15px;">
+        <b>Do hierarchical policies improve in-distribution performance even without human data?</b><br>
+        Yes. For <span style="color: rgb(90, 155, 213); font-weight: bold;">plate-on-table</span>, nearly all methods saturate in performance, as the task is simple with sufficient training data. However, for long-horizon complex tasks, we see significant increases: on <span style="color: rgb(90, 155, 213); font-weight: bold;">fold-onesie</span>, performance increases from 20% (DP) to 90% (GHOST - Robot Only) final success, showing large benefits from hierarchical decomposition. Similarly, on <span style="color: rgb(90, 155, 213); font-weight: bold;">hammer-pin</span>, which requires precise grasping of the hammer tool and striking the correct pin, performance significantly improves from DP (20%) to GHOST - Robot Only (60%).
+      </p>
+
+      <p style="font-family: 'Roboto Mono', monospace; font-size: 14px; line-height: 1.6; margin-bottom: 15px;">
+        <b>Do human demonstrations enable transferring learned skills to novel object instances, categories, and contexts?</b><br>
+        Yes. Human demonstrations unlock meaningful OOD transfer of learned skills to novel objects and skill compositions. GHOST achieves 70% success on <span style="color: rgb(247, 150, 70); font-weight: bold;">mug-on-table</span>, a task featuring a combination of objects unseen in robot demonstrations. On <span style="color: rgb(247, 150, 70); font-weight: bold;">fold-onesie-ood</span>, GHOST achieves 50% final success vs 40% for GHOST - Robot Only and 0% for MimicPlay and flat DP. On the hardest task of generalizing to a novel object category and skill combination (<span style="color: rgb(247, 150, 70); font-weight: bold;">fold-towel</span>), GHOST achieves 40% success rate compared to 20% with MimicPlay.
+      </p>
+    </div>
+
+    <!-- BibTeX -->
+    <div class="bibtex-code" id="bibtex">
+      <div class="bibtex-title">BibTeX</div>
+      <div style="height: 150px; background-color: rgba(60, 60, 60, 0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-top: 10px;">
+        <p style="font-family: 'Roboto Mono', monospace; color: #999; font-size: 16px;">Coming soon</p>
+      </div>
+    </div>
+
+  </div> <!-- End of main-content div -->
+
+  <div class="footer">
+    Website template modified from <a href="https://videomimic.net/" target="_blank">VideoMimic</a>.
+  </div>
+
+  <!-- JavaScript for Video Gallery Navigation -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const galleries = [
+        {
+          galleryInnerId: 'videoGalleryPickPlace',
+          scrollLeftBtnId: 'scrollLeftBtnPickPlace',
+          scrollRightBtnId: 'scrollRightBtnPickPlace'
+        },
+        {
+          galleryInnerId: 'videoGalleryHammerPin',
+          scrollLeftBtnId: 'scrollLeftBtnHammerPin',
+          scrollRightBtnId: 'scrollRightBtnHammerPin'
+        },
+        {
+          galleryInnerId: 'videoGalleryClothFolding',
+          scrollLeftBtnId: 'scrollLeftBtnClothFolding',
+          scrollRightBtnId: 'scrollRightBtnClothFolding'
+        }
+      ];
+
+      galleries.forEach(galleryConfig => {
+        const galleryContainer = document.getElementById(galleryConfig.galleryInnerId);
+        const scrollLeftBtn = document.getElementById(galleryConfig.scrollLeftBtnId);
+        const scrollRightBtn = document.getElementById(galleryConfig.scrollRightBtnId);
+
+        if (galleryContainer && scrollLeftBtn && scrollRightBtn) {
+          const scrollAmount = 365; // Width of placeholder + gap
+
+          scrollLeftBtn.addEventListener('click', () => {
+            galleryContainer.parentElement.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+          });
+
+          scrollRightBtn.addEventListener('click', () => {
+            galleryContainer.parentElement.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+          });
+        }
+      });
+    });
+  </script>
+
+  <!-- Three.js for 3D Viewers -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/PLYLoader.js"></script>
+
+  <!-- 3D Viewer Script -->
+  <script>
+    function createViewer(canvasId, meshFiles, cameraPosition) {
+      const canvas = document.getElementById(canvasId);
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+
+      // Scene setup
+      const scene = new THREE.Scene();
+      scene.background = null;
+
+      // Camera
+      const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+      camera.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+
+      // Renderer
+      const renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        alpha: true,
+        antialias: true
+      });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(window.devicePixelRatio);
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+
+      const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.5);
+      directionalLight1.position.set(5, 5, 5);
+      scene.add(directionalLight1);
+
+      const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
+      directionalLight2.position.set(-5, -5, -5);
+      scene.add(directionalLight2);
+
+      // Controls
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.screenSpacePanning = false;
+      controls.minDistance = 0.1;
+      controls.maxDistance = 10;
+
+      // Load PLY files
+      const loader = new THREE.PLYLoader();
+      const meshes = [];
+      let loadedCount = 0;
+
+      meshFiles.forEach((file, index) => {
+        loader.load(file.path, function(geometry) {
+          geometry.computeVertexNormals();
+
+          const material = new THREE.MeshPhongMaterial({
+            vertexColors: true,
+            specular: 0x111111,
+            shininess: 30
+          });
+
+          const mesh = new THREE.Mesh(geometry, material);
+          meshes.push(mesh);
+          scene.add(mesh);
+
+          loadedCount++;
+
+          // After all meshes are loaded, center them as a group
+          if (loadedCount === meshFiles.length) {
+            const box = new THREE.Box3();
+            meshes.forEach(m => box.expandByObject(m));
+            const center = box.getCenter(new THREE.Vector3());
+            meshes.forEach(m => m.position.sub(center));
+          }
+        },
+        // Progress callback
+        function(xhr) {
+          console.log((xhr.loaded / xhr.total * 100) + '% loaded: ' + file.path);
+        },
+        // Error callback
+        function(error) {
+          console.error('Error loading ' + file.path + ':', error);
+        });
+      });
+
+      // Animation loop
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // Handle window resize
+      window.addEventListener('resize', () => {
+        const newWidth = canvas.clientWidth;
+        const newHeight = canvas.clientHeight;
+        camera.aspect = newWidth / newHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(newWidth, newHeight);
+      });
+    }
+
+    // Initialize viewers when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      // ALOHA Gripper viewer
+      createViewer('aloha-viewer', [
+        { path: 'meshes/aloha_gripper.ply' },
+        { path: 'meshes/aloha_spheres.ply' }
+      ], { x: 0.15, y: 0.1, z: 0.15 });
+
+      // Hand viewer
+      createViewer('hand-viewer', [
+        { path: 'meshes/hand_gripper.ply' },
+        { path: 'meshes/hand_spheres.ply' }
+      ], { x: 0.15, y: 0.1, z: 0.15 });
+    });
+  </script>
+
+</body>
+</html>
